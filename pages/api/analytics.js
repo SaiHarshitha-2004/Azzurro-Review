@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../../lib/supabase'
+import CompetitorBenchmark from '../../components/competitorBenchmark'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -188,3 +189,5 @@ export default async function handler(req, res) {
     })
   }
 }
+
+<CompetitorBenchmark />

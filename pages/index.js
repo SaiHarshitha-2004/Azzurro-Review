@@ -4,6 +4,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend
 } from 'recharts'
+import CompetitorBenchmark from '../components/competitorBenchmark'
 
 const CATEGORY_COLORS = {
   cleaning: '#E24B4A',
@@ -70,16 +71,16 @@ export default function Dashboard() {
 
   const categoryData = analytics?.categories
     ? Object.entries(analytics.categories)
-        .map(([name, value]) => ({ name, value, icon: CATEGORY_ICONS[name] || '💬' }))
-        .sort((a, b) => b.value - a.value)
+      .map(([name, value]) => ({ name, value, icon: CATEGORY_ICONS[name] || '💬' }))
+      .sort((a, b) => b.value - a.value)
     : []
 
   const sentimentData = analytics?.sentiments
     ? [
-        { name: 'Positive', value: analytics.sentiments.positive, color: '#1D9E75' },
-        { name: 'Neutral', value: analytics.sentiments.neutral, color: '#888780' },
-        { name: 'Negative', value: analytics.sentiments.negative, color: '#E24B4A' }
-      ]
+      { name: 'Positive', value: analytics.sentiments.positive, color: '#1D9E75' },
+      { name: 'Neutral', value: analytics.sentiments.neutral, color: '#888780' },
+      { name: 'Negative', value: analytics.sentiments.negative, color: '#E24B4A' }
+    ]
     : []
 
   return (
@@ -316,6 +317,8 @@ export default function Dashboard() {
           </div>
         )}
       </div>
+
+      <CompetitorBenchmark />
     </div>
   )
 }
