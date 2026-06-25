@@ -56,8 +56,8 @@ export default function Dashboard() {
         body: JSON.stringify({ url, propertyName })
       })
       const data = await res.json()
-      setScrapeMsg(data.success ? `✅ ${data.message}` : `❌ ${data.error}`)
-      if (data.success) {
+      setScrapeMsg(data.success ? `✅ ${data.message || 'Success'}` : `❌ ${data.error || data.message || 'An error occurred'}`)
+      if (data.success && data.count > 0) {
         setUrl('')
         setPropertyName('')
         fetchAnalytics()

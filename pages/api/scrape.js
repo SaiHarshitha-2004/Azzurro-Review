@@ -42,7 +42,7 @@ export default async function handler(req, res) {
     }
 
     if (reviews.length === 0) {
-      return res.status(200).json({ message: 'No reviews found on this page', count: 0 })
+      return res.status(200).json({ success: true, message: 'No reviews found on this page', count: 0 })
     }
 
     // 3. AI categorize reviews
