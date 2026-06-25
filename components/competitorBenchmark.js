@@ -28,7 +28,7 @@ export default function CompetitorBenchmark() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto mt-8 bg-white rounded-2xl shadow-lg p-6">
+        <div className="max-w-6xl mx-auto mt-8 mb-8 bg-white rounded-2xl shadow-lg p-6">
             <h2 className="text-3xl font-bold text-center mb-6 text-gray-800">
                 Competitor Benchmark
             </h2>
