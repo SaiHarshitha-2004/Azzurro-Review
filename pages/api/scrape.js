@@ -1,78 +1,152 @@
 // pages/api/scrape.js
+
 import { scrapeReviews } from '../../lib/scraper'
 import { categorizeReviews } from '../../lib/categorizer'
 import { supabaseAdmin } from '../../lib/supabase'
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== 'POST') {
+    return res.status(405).json({
+      error: 'Method not allowed'
+    })
+  }
 
   const { url, propertyName } = req.body
 
-  if (!url) return res.status(400).json({ error: 'URL is required' })
+  if (!url?.trim()) {
+    return res.status(400).json({
+      error: 'Property URL is required'
+    })
+  }
+
+  if (!propertyName?.trim()) {
+    return res.status(400).json({
+      error: 'Property name is required'
+    })
+  }
 
   const supabase = supabaseAdmin()
 
   try {
-    // 1. Save or get property
-    let property
-    const { data: existing } = await supabase
+
+    // Check if URL already exists
+    const { data: existingProperty } = await supabase
       .from('properties')
       .select('*')
       .eq('url', url)
-      .single()
+      .maybeSingle()
 
-    if (existing) {
-      property = existing
-    } else {
-      const { data: newProp, error } = await supabase
+    if (existingProperty) {
+      return res.status(400).json({
+        error: 'This property URL already exists'
+      })
+    }
+
+    // Check if property name already exists
+    const { data: existingName } = await supabase
+      .from('properties')
+      .select('id')
+      .ilike('name', propertyName.trim())
+      .maybeSingle()
+
+    if (existingName) {
+      return res.status(400).json({
+        error: 'Property name already exists. Please use a unique name.'
+      })
+    }
+
+    // Scrape reviews
+    const {
+      success,
+      reviews,
+      error: scrapeError
+    } = await scrapeReviews(url)
+
+    if (!success) {
+      return res.status(500).json({
+        error: `Scraping failed: ${scrapeError}`
+      })
+    }
+
+    // Create property
+    const { data: property, error: propertyError } =
+      await supabase
         .from('properties')
-        .insert({ name: propertyName || 'Unnamed Property', url, platform: 'booking.com' })
+        .insert({
+          name: propertyName.trim(),
+          url,
+          platform: 'booking.com'
+        })
         .select()
         .single()
 
-      if (error) throw error
-      property = newProp
+    if (propertyError) {
+      throw propertyError
     }
 
-    // 2. Scrape reviews
-    const { success, reviews, error: scrapeError } = await scrapeReviews(url)
-
-    if (!success) {
-      return res.status(500).json({ error: `Scraping failed: ${scrapeError}` })
+    // No reviews found
+    if (!reviews || reviews.length === 0) {
+      return res.status(200).json({
+        success: true,
+        property: property.name,
+        count: 0,
+        message: 'No reviews found on this page'
+      })
     }
 
-    if (reviews.length === 0) {
-      return res.status(200).json({ success: true, message: 'No reviews found on this page', count: 0 })
-    }
-
-    // 3. AI categorize reviews
+    // Categorize reviews
     const categorized = await categorizeReviews(reviews)
 
-    // 4. Save to Supabase
-    const toInsert = categorized.map(r => ({
+    const reviewsToInsert = categorized.map(review => ({
       property_id: property.id,
-      reviewer_name: r.reviewer_name,
-      rating: r.rating,
-      review_text: r.review_text,
-      review_date: r.review_date || new Date().toISOString().split('T')[0],
-      category: r.category,
-      sentiment: r.sentiment,
-      is_flagged: r.is_flagged || false
+      reviewer_name:
+        review.reviewer_name || 'Anonymous',
+
+      rating:
+        review.rating !== undefined
+          ? review.rating
+          : null,
+
+      review_text:
+        review.review_text || '',
+
+      review_date:
+        review.review_date ||
+        new Date()
+          .toISOString()
+          .split('T')[0],
+
+      category:
+        review.category || 'other',
+
+      sentiment:
+        review.sentiment || 'neutral',
+
+      is_flagged:
+        review.is_flagged || false
     }))
 
-    const { error: insertError } = await supabase.from('reviews').insert(toInsert)
+    const { error: reviewsError } =
+      await supabase
+        .from('reviews')
+        .insert(reviewsToInsert)
 
-    if (insertError) throw insertError
+    if (reviewsError) {
+      throw reviewsError
+    }
 
     return res.status(200).json({
       success: true,
       property: property.name,
-      count: toInsert.length,
-      message: `Successfully scraped and saved ${toInsert.length} reviews`
+      count: reviewsToInsert.length,
+      message: `Successfully scraped and saved ${reviewsToInsert.length} reviews`
     })
 
   } catch (error) {
-    console.error(error)
-    return res.status(500).json({ error: error.message })
+    console.error('SCRAPE API ERROR:', error)
+
+    return res.status(500).json({
+      error: error.message || 'Internal server error'
+    })
   }
 }
